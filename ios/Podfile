@@ -1,13 +1,11 @@
-# Podfile の一番上に追加
-ENV['OTHER_CFLAGS'] = ''
-ENV['OTHER_CPLUSPLUSFLAGS'] = ''
-
 $FirebaseSDKVersion = '10.24.0'
 # Uncomment this line to define a global platform for your project
 platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+ENV['OTHER_CFLAGS'] = ''
+ENV['OTHER_CPLUSPLUSFLAGS'] = ''
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -40,54 +38,31 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # Helper: フラグ群から -G を徹底的に排除する関数
-  def remove_g_flag(hash)
-    hash.keys.each do |key|
-      next unless key.to_s.include?('FLAGS') || key.to_s.include?('DEFINITIONS') || key.to_s.include?('CFLAGS')
-
-      val = hash[key]
-      if val.is_a?(Array)
-        val.reject! { |f| f.to_s == '-G' || f.to_s.match?(/-G(\s+|$)/) }
-      elsif val.is_a?(String)
-        hash[key] = val.gsub(/-G(\s+|$)/, '').strip
-      end
-    end
-  end
-
-  # 1. すべての Pod ターゲットの Deployment Target を 15.0 に揃える
+  # 1. すべての Pod ターゲットの Deployment Target とコンパイラ設定を調整
   installer.pods_project.targets.each do |target|
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        # フラグから -G を徹底排除
+        %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS CFLAGS CXXFLAGS].each do |flag_key|
+          if config.build_settings[flag_key]
+            if config.build_settings[flag_key].is_a?(Array)
+              config.build_settings[flag_key].reject! { |f| f.to_s.include?('-G') }
+            elsif config.build_settings[flag_key].is_a?(String)
+              config.build_settings[flag_key] = config.build_settings[flag_key].gsub(/-G(\s+|$)/, '').strip
+            end
+          end
+        end
       end
     end
 
     # Flutter公式の設定適用
     flutter_additional_ios_build_settings(target)
-
-    # non-modular header と -G フラグの除去
-    if target.respond_to?(:build_configurations)
-      target.build_configurations.each do |config|
-        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        remove_g_flag(config.build_settings)
-      end
-    end
   end
 
-  # 2. アプリ本体（Runner）のターゲット設定からも -G フラグを除去
-  runner_project_path = File.expand_path('../Runner.xcodeproj', __FILE__)
-  if File.exist?(runner_project_path)
-    runner_project = Xcodeproj::Project.open(runner_project_path)
-    runner_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-        remove_g_flag(config.build_settings)
-      end
-    end
-    runner_project.save
-  end
-
-  # 3. 生成された全 .xcconfig / .pbxproj ファイル内の -G 文字列を直接削り取る
+  # 2. 生成された全 .xcconfig / .pbxproj ファイル内の -G 文字列を直接削り取る
   ios_dir = File.expand_path('..', __FILE__)
   Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
     next unless File.exist?(file_path)
@@ -95,34 +70,6 @@ post_install do |installer|
     if content.include?('-G')
       new_content = content.gsub(/-G(\s+|$)/, '')
       File.write(file_path, new_content)
-      puts "[Podfile] Cleared -G flag from #{file_path}"
-    end
-  end
-end
-
-# Codemagic等のビルドマシン上で生成された設定から -G を自動消去するフック
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    target.build_configurations.each do |config|
-      # OTHER_CFLAGS や CFLAGS から -G を除去
-      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS CFLAGS CXXFLAGS].each do |flag_key|
-        if config.build_settings[flag_key]
-          if config.build_settings[flag_key].is_a?(Array)
-            config.build_settings[flag_key].reject! { |f| f.to_s.include?('-G') }
-          elsif config.build_settings[flag_key].is_a?(String)
-            config.build_settings[flag_key] = config.build_settings[flag_key].gsub(/-G(\s+|$)/, '').strip
-          end
-        end
-      end
-    end
-  end
-
-  # 生成された .xcconfig ファイル群からも直接 -G を抹消
-  Dir.glob("#{File.dirname(__FILE__)}/Pods/**/*.xcconfig").each do |file_path|
-    text = File.read(file_path)
-    if text.include?('-G')
-      new_text = text.gsub(/-G(\s+|$)/, '')
-      File.write(file_path, new_text)
     end
   end
 end
