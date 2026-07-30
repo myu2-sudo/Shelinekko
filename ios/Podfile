@@ -1,0 +1,56 @@
+$FirebaseSDKVersion = '10.24.0'
+# Uncomment this line to define a global platform for your project
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+# 古いXcodeでの互換性エラーを回避するためにSDWebImageのバージョンを固定します
+pod 'SDWebImage', '~> 5.19.0'
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+# === post_install の修正版（non-modularエラーも完全自動回避） ===
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    # 1. ターゲット内のすべての構成（Debug/Release/Profile）を完全に13.0に強制統一します
+    if target.respond_to?(:build_configurations)
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        
+        # [追加] 今回の「non-modular header」エラーを強制突破する魔法の設定です！
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
+
+    # 2. バージョン統一＆エラー回避設定が終わった後で、Flutter公式の連携を実行します
+    flutter_additional_ios_build_settings(target)
+  end
+end

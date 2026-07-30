@@ -1,0 +1,57 @@
+name: my_card_app
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  purchases_flutter: ^7.0.0
+  flutter_launcher_icons: ^0.13.1
+
+  # Firebase関連の必須パッケージ
+  firebase_core: ^3.0.0
+  firebase_analytics: ^11.0.0  # ★追加：アナリティクス計測用
+  firebase_auth: ^5.2.0
+  cloud_firestore: ^5.0.0
+  firebase_storage: ^12.0.0
+
+  # 画像選択・日付操作ツール
+  intl: ^0.19.0
+
+  share_plus: any
+
+  # 画像圧縮・パス管理用ツール（新規追加）
+  flutter_image_compress: ^2.3.0
+
+ # 2015年の環境でも非常に安定して動く、少し前のメジャーバージョンに固定します
+  path_provider: ^2.0.15
+  image_picker: ^0.8.9
+
+  # 暗号化処理に使用（既存コード用）
+  crypto: ^3.0.3
+  image_cropper: ^8.0.1
+  sign_in_with_apple: ^7.0.1
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+dependency_overrides:
+  path_provider: 2.0.15
+  path_provider_platform_interface: 2.0.1
+  image_cropper_platform_interface: 6.1.0
+
+flutter_launcher_icons:
+  ios: true
+  android: true
+  image_path: "assets/icon.png"
+  # 角丸はビルド時にiOSが自動で付けてくれるので、元画像は正方形のままでOKです
