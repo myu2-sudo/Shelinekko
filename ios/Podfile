@@ -5,7 +5,6 @@ platform :ios, '15.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
-
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
@@ -37,20 +36,30 @@ target 'Runner' do
   end
 end
 
-# === post_install の修正版（non-modularエラーも完全自動回避） ===
+# === post_install の修正版（non-modularエラー ＆ -Gフラグエラーを完全回避） ===
 post_install do |installer|
   installer.pods_project.targets.each do |target|
-    # 1. ターゲット内のすべての構成（Debug/Release/Profile）を完全に13.0に強制統一します
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
+        # 1. Deployment Target を 15.0 に統一
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
         
-        # [追加] 今回の「non-modular header」エラーを強制突破する魔法の設定です！
+        # 2. non-modular header エラー回避
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        # 3. Xcode 16 以降で発生する `-G` フラグエラーを強制削除する設定
+        %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].each do |flag_key|
+          flags = config.build_settings[flag_key]
+          if flags.is_a?(Array)
+            flags.reject! { |flag| flag == '-G' || flag.to_s.include?('-G') }
+          elsif flags.is_a?(String)
+            config.build_settings[flag_key] = flags.gsub(/-G\s*/, '').strip
+          end
+        end
       end
     end
 
-    # 2. バージョン統一＆エラー回避設定が終わった後で、Flutter公式の連携を実行します
+    # 4. Flutter公式の連携を実行
     flutter_additional_ios_build_settings(target)
   end
 end
