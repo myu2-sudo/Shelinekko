@@ -1,3 +1,7 @@
+# Podfile の一番上に追加
+ENV['OTHER_CFLAGS'] = ''
+ENV['OTHER_CPLUSPLUSFLAGS'] = ''
+
 $FirebaseSDKVersion = '10.24.0'
 # Uncomment this line to define a global platform for your project
 platform :ios, '15.0'
