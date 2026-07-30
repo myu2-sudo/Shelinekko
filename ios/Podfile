@@ -22,7 +22,6 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
-# 古いXcodeでの互換性エラーを回避するためにSDWebImageのバージョンを固定します
 pod 'SDWebImage', '~> 5.19.0'
 
 target 'Runner' do
@@ -37,21 +36,21 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # Helper関数: CFlagsから -G を徹底的に消去する
-  def sanitize_cflags(config)
-    %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS GCC_PREPROCESSOR_DEFINITIONS CFLAGS CXXFLAGS].each do |flag_key|
-      flags = config.build_settings[flag_key]
-      next if flags.nil?
+  # Helper: フラグ群から -G を徹底的に排除する関数
+  def remove_g_flag(hash)
+    hash.keys.each do |key|
+      next unless key.to_s.include?('FLAGS') || key.to_s.include?('DEFINITIONS') || key.to_s.include?('CFLAGS')
 
-      if flags.is_a?(Array)
-        flags.reject! { |flag| flag == '-G' || flag.to_s.include?('-G') }
-      elsif flags.is_a?(String)
-        config.build_settings[flag_key] = flags.gsub(/-G(\s+|$)/, '').strip
+      val = hash[key]
+      if val.is_a?(Array)
+        val.reject! { |f| f.to_s == '-G' || f.to_s.match?(/-G(\s+|$)/) }
+      elsif val.is_a?(String)
+        hash[key] = val.gsub(/-G(\s+|$)/, '').strip
       end
     end
   end
 
-  # 1. Pods プロジェクト内のすべてのターゲット（ライブラリ）の処理
+  # 1. すべての Pod ターゲットの Deployment Target を 15.0 に揃える
   installer.pods_project.targets.each do |target|
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
@@ -59,38 +58,40 @@ post_install do |installer|
       end
     end
 
+    # Flutter公式の設定適用
     flutter_additional_ios_build_settings(target)
 
+    # non-modular header と -G フラグの除去
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        sanitize_cflags(config)
+        remove_g_flag(config.build_settings)
       end
     end
   end
 
-  # 2. 【重要】Runner（アプリ本体）のプロジェクトファイルからも -G を削除する
+  # 2. アプリ本体（Runner）のターゲット設定からも -G フラグを除去
   runner_project_path = File.expand_path('../Runner.xcodeproj', __FILE__)
   if File.exist?(runner_project_path)
     runner_project = Xcodeproj::Project.open(runner_project_path)
     runner_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-        sanitize_cflags(config)
+        remove_g_flag(config.build_settings)
       end
     end
     runner_project.save
   end
 
-  # 3. Flutter の全 .xcconfig ファイルから -G を直接削除する
+  # 3. 生成された全 .xcconfig / .pbxproj ファイル内の -G 文字列を直接削り取る
   ios_dir = File.expand_path('..', __FILE__)
-  Dir.glob("#{ios_dir}/**/*.xcconfig").each do |file_path|
-    if File.exist?(file_path)
-      content = File.read(file_path)
-      if content.include?('-G')
-        new_content = content.gsub(/-G(\s+|$)/, '')
-        File.write(file_path, new_content)
-      end
+  Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
+    next unless File.exist?(file_path)
+    content = File.read(file_path)
+    if content.include?('-G')
+      new_content = content.gsub(/-G(\s+|$)/, '')
+      File.write(file_path, new_content)
+      puts "[Podfile] Cleared -G flag from #{file_path}"
     end
   end
 end
