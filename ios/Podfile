@@ -99,3 +99,30 @@ post_install do |installer|
     end
   end
 end
+
+# Codemagic等のビルドマシン上で生成された設定から -G を自動消去するフック
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      # OTHER_CFLAGS や CFLAGS から -G を除去
+      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS CFLAGS CXXFLAGS].each do |flag_key|
+        if config.build_settings[flag_key]
+          if config.build_settings[flag_key].is_a?(Array)
+            config.build_settings[flag_key].reject! { |f| f.to_s.include?('-G') }
+          elsif config.build_settings[flag_key].is_a?(String)
+            config.build_settings[flag_key] = config.build_settings[flag_key].gsub(/-G(\s+|$)/, '').strip
+          end
+        end
+      end
+    end
+  end
+
+  # 生成された .xcconfig ファイル群からも直接 -G を抹消
+  Dir.glob("#{File.dirname(__FILE__)}/Pods/**/*.xcconfig").each do |file_path|
+    text = File.read(file_path)
+    if text.include?('-G')
+      new_text = text.gsub(/-G(\s+|$)/, '')
+      File.write(file_path, new_text)
+    end
+  end
+end
