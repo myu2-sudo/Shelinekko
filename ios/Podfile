@@ -36,19 +36,27 @@ target 'Runner' do
   end
 end
 
-# === post_install の修正版（non-modularエラー ＆ -Gフラグエラーを完全回避） ===
+# === post_install の確定版 ===
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    # Step 1: まず先にすべてのビルド構成の iOS バージョンを 15.0 に揃える（不一致エラー防止）
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
-        # 1. Deployment Target を 15.0 に統一
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
-        
-        # 2. non-modular header エラー回避
+      end
+    end
+
+    # Step 2: バージョンが揃った状態で Flutter 公式の設定を呼び出す
+    flutter_additional_ios_build_settings(target)
+
+    # Step 3: Flutter 公式処理が追加したフラグも含め、最後に上書き・クリーンアップする
+    if target.respond_to?(:build_configurations)
+      target.build_configurations.each do |config|
+        # non-modular header エラー回避
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
 
-        # 3. Xcode 16 以降で発生する `-G` フラグエラーを強制削除する設定
-        %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].each do |flag_key|
+        # `-G` フラグを徹底排除
+        %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS GCC_PREPROCESSOR_DEFINITIONS].each do |flag_key|
           flags = config.build_settings[flag_key]
           if flags.is_a?(Array)
             flags.reject! { |flag| flag == '-G' || flag.to_s.include?('-G') }
@@ -58,8 +66,5 @@ post_install do |installer|
         end
       end
     end
-
-    # 4. Flutter公式の連携を実行
-    flutter_additional_ios_build_settings(target)
   end
 end
