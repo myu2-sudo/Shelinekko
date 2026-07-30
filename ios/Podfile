@@ -43,7 +43,7 @@ post_install do |installer|
     # 1. ターゲット内のすべての構成（Debug/Release/Profile）を完全に13.0に強制統一します
     if target.respond_to?(:build_configurations)
       target.build_configurations.each do |config|
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
         
         # [追加] 今回の「non-modular header」エラーを強制突破する魔法の設定です！
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
