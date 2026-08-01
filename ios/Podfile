@@ -45,8 +45,4 @@ post_install do |installer|
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
     end
   end
-
-  # pod install 直後に全設定ファイルから単体の -G フラグを確実に除去
-  ios_dir = File.dirname(__FILE__)
-  system("find #{ios_dir} -type f \\( -name '*.xcconfig' -o -name '*.pbxproj' \\) -exec perl -pi -e 's/-G(?![a-zA-Z0-9])//g' {} +")
 end
