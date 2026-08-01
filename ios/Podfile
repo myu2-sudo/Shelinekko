@@ -37,6 +37,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # 1. Pods ターゲットのビルド設定から -G を除去
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
@@ -44,15 +45,27 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+
+      config.build_settings.each do |key, value|
+        next if value.nil?
+        if value.is_a?(Array)
+          config.build_settings[key] = value.map { |v| v.to_s.gsub(/(?<=[\s"';,]|^)-G(?=[\s"';,]|$)/, '').strip }.reject(&:empty?)
+        elsif value.is_a?(String)
+          config.build_settings[key] = value.gsub(/(?<=[\s"';,]|^)-G(?=[\s"';,]|$)/, '').strip
+        end
+      end
     end
   end
 
-  # ios フォルダ配下の全設定ファイルから単独の -G フラグを安全に除去
+  installer.pods_project.save
+
+  # 2. アプリ本体（Runner.xcodeproj）および ios/ 配下の全設定ファイルから単体 -G フラグを直接消去
   ios_dir = File.dirname(__FILE__)
   Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
     next unless File.file?(file_path)
     content = File.read(file_path)
-    cleaned = content.gsub(/-G(?![a-zA-Z0-9_])/, '')
+    # ファイル名（-GTMSessionFetcher等）は無視し、独立した -G フラグだけを打ち抜く
+    cleaned = content.gsub(/(?<=[\s"';,]|^)-G(?=[\s"';,]|$)/, '')
     if content != cleaned
       File.write(file_path, cleaned)
     end
