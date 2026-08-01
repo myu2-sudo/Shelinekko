@@ -37,6 +37,7 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # 1. Xcodeプロジェクトの設定値から -G を除去
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
@@ -45,17 +46,34 @@ post_install do |installer|
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
 
-      # コンパイラ・リンカーのフラグ項目だけに絞って "-G" を安全に除去
-      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS CFLAGS CXXFLAGS OTHER_LDFLAGS].each do |flag_key|
-        flags = config.build_settings[flag_key]
-        next if flags.nil?
-
-        if flags.is_a?(Array)
-          config.build_settings[flag_key] = flags.reject { |f| f.to_s.strip == '-G' }
-        elsif flags.is_a?(String)
-          config.build_settings[flag_key] = flags.gsub(/(?:^|\s+)-G(?=\s+|$)/, '').strip
+      config.build_settings.each do |key, value|
+        next if value.nil?
+        if value.is_a?(Array)
+          config.build_settings[key] = value.map { |v| v.to_s.gsub(/(?<=\s|^|")-G(?=\s|$|")/, '').strip }.reject(&:empty?)
+        elsif value.is_a?(String)
+          config.build_settings[key] = value.gsub(/(?<=\s|^|")-G(?=\s|$|")/, '').strip
         end
       end
     end
+
+    # 個別ファイルのコンパイラフラグから -G を除去
+    target.build_phases.each do |phase|
+      next unless phase.respond_to?(:files)
+      phase.files.each do |file|
+        if file.settings && file.settings['COMPILER_FLAGS']
+          file.settings['COMPILER_FLAGS'] = file.settings['COMPILER_FLAGS'].gsub(/(?<=\s|^|")-G(?=\s|$|")/, '').strip
+        end
+      end
+    end
+  end
+
+  installer.pods_project.save
+
+  # 2. pod install がディスク上に生成した全 .xcconfig ファイルから -G を直後に全滅させる
+  # (ファイル名中の -G には触れず、独立したフラグのみを安全に除去)
+  Dir.glob("#{installer.sandbox.root}/**/*.xcconfig").each do |xcconfig_path|
+    content = File.read(xcconfig_path)
+    cleaned = content.gsub(/(?<=\s|^|")-G(?=\s|$|")/, '')
+    File.write(xcconfig_path, cleaned) if content != cleaned
   end
 end
