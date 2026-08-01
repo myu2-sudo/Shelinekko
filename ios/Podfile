@@ -45,4 +45,18 @@ post_install do |installer|
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
     end
   end
+
+  # pod install がファイルを吐き出した直後に、全設定ファイルから単体の -G フラグを確実に消去
+  ios_dir = File.dirname(__FILE__)
+  Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
+    next unless File.file?(file_path)
+    content = File.read(file_path)
+
+    # -GTMSessionFetcher などのファイル名は保護し、前後がスペース/引用符/セミコロン等の -G だけを除去
+    cleaned = content.gsub(/(^|[\s"';,])-G([\s"';,]|$)/, '\1\2')
+
+    if content != cleaned
+      File.write(file_path, cleaned)
+    end
+  end
 end
