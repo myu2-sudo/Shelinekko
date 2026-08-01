@@ -3,7 +3,6 @@ $FirebaseSDKVersion = '10.24.0'
 # Minimum deployment target
 platform :ios, '15.0'
 
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 def flutter_root
@@ -44,20 +43,6 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-    end
-  end
-
-  # ios フォルダ配下の全設定ファイルから、末尾に ; や , が付いた -G も含めて安全に完全削除
-  ios_dir = File.dirname(__FILE__)
-  Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
-    next unless File.file?(file_path)
-    content = File.read(file_path)
-
-    # -G の直後に英数字やハイフンが続かない（=ファイル名ではない）単体フラグだけを確実に削除
-    cleaned = content.gsub(/-G(?![a-zA-Z0-9_\-\/])/, '')
-
-    if content != cleaned
-      File.write(file_path, cleaned)
     end
   end
 end
