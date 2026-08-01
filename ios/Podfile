@@ -37,7 +37,6 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # 1. Podsターゲットの設定から独立した -G フラグを削除
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
@@ -45,35 +44,15 @@ post_install do |installer|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
       config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-
-      config.build_settings.each do |key, value|
-        next if value.nil?
-        if value.is_a?(Array)
-          config.build_settings[key] = value.map { |v| v.to_s.gsub(/(?<=[\s"']|^)-G(?=[\s"']|$)/, '').strip }.reject(&:empty?)
-        elsif value.is_a?(String)
-          config.build_settings[key] = value.gsub(/(?<=[\s"']|^)-G(?=[\s"']|$)/, '').strip
-        end
-      end
-    end
-
-    target.build_phases.each do |phase|
-      next unless phase.respond_to?(:files)
-      phase.files.each do |file|
-        if file.settings && file.settings['COMPILER_FLAGS']
-          file.settings['COMPILER_FLAGS'] = file.settings['COMPILER_FLAGS'].gsub(/(?<=[\s"']|^)-G(?=[\s"']|$)/, '').strip
-        end
-      end
     end
   end
 
-  installer.pods_project.save
-
-  # 2. ios フォルダ配下（Flutter/ や Pods/ を含む全域）の .xcconfig / .pbxproj から -G フラグを安全に除去
+  # ios フォルダ配下の全設定ファイルから単独の -G フラグを安全に除去
   ios_dir = File.dirname(__FILE__)
   Dir.glob("#{ios_dir}/**/*.{xcconfig,pbxproj}").each do |file_path|
     next unless File.file?(file_path)
     content = File.read(file_path)
-    cleaned = content.gsub(/(?<=[\s"']|^)-G(?=[\s"']|$)/, '')
+    cleaned = content.gsub(/-G(?![a-zA-Z0-9_])/, '')
     if content != cleaned
       File.write(file_path, cleaned)
     end
