@@ -10,12 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # RevenueCat（^ を付けて Dart 3.3.4 で動く最新マイナー版を自動選択）
   purchases_flutter: ^7.0.0
-
   flutter_launcher_icons: ^0.14.4
 
-  # Firebase関連パッケージ（元の 3.3.4 互換バージョンを維持）
+  # Firebase関連
   firebase_core: ^3.0.0
   firebase_analytics: ^11.0.0
   firebase_auth: ^5.2.0
@@ -26,13 +24,13 @@ dependencies:
   intl: ^0.20.2
   share_plus: ^10.0.0
 
-  # 画像・ファイル処理ツール（^ を付けて Dart 3.3.4 で動く最新マイナー版を自動選択）
+  # 画像・ファイル処理
   flutter_image_compress: ^2.3.0
   path_provider: ^2.1.2
   image_picker: ^1.1.0
   image_cropper: ^7.0.0
 
-  # 暗号化・認証（元の 3.3.4 互換バージョンを維持）
+  # 暗号化・認証
   crypto: ^3.0.3
   sign_in_with_apple: ^7.0.1
 
